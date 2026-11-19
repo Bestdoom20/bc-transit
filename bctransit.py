@@ -129,10 +129,31 @@ def direct_trips(z, d, a_q, b_q):
     return sorted(out), len(a), len(b)
 
 
+def selftest():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w') as z:
+        z.writestr('routes.txt', 'route_id,route_short_name,route_long_name\nR,23,Loop\n')
+        z.writestr('trips.txt', 'route_id,service_id,trip_id,trip_headsign,block_id\nR,WK,T1,North,X\nR,WK,T2,North,\n'
+                   'R,SAT,T3,North,\nR,WK,T4,South,X\n')
+        z.writestr('stops.txt', 'stop_id,stop_name,stop_code\nA,Main at First,100\nB,Lake Exchange,200\nC,College,300\n')
+        z.writestr('stop_times.txt', 'trip_id,arrival_time,departure_time,stop_id,stop_sequence\n'
+                   'T1,08:00:00,08:00:00,A,1\nT1,08:20:00,08:20:00,B,2\nT2,24:30:00,24:30:00,A,1\nT2,24:50:00,24:50:00,B,2\n'
+                   'T3,09:00:00,09:00:00,B,1\nT3,09:15:00,09:15:00,A,2\nT4,08:22:00,08:22:00,B,1\nT4,08:40:00,08:40:00,C,2\n')
+        z.writestr('calendar_dates.txt', 'service_id,date,exception_type\nWK,20261120,1\nSAT,20261121,1\n')
+    z = zipfile.ZipFile(buf)
+    fri, sat = datetime(2026, 11, 20).date(), datetime(2026, 11, 21).date()
+    assert [clock(t) for t, *_ in departures(z, fri, 0, '100')[0]] == ['8:00 AM', '12:30 AM (next day)']
+    assert [clock(t) for t, *_ in departures(z, sat, 0, 'main first')[0]] == ['12:30 AM', '9:15 AM'], 'Friday late trip shows on Saturday'
+    assert [(clock(d), clock(a)) for d, a, *_ in direct_trips(z, fri, '100', 'lake')[0]] == [('8:00 AM', '8:20 AM'), ('12:30 AM (next day)', '12:50 AM (next day)')]
+    assert direct_trips(z, sat, '100', 'lake')[0][1:] == [], 'Saturday trip runs the other way, so only the late Friday trip counts'
+    assert [(clock(d), clock(a)) for d, a, *_ in direct_trips(z, fri, '100', 'college')[0]] == [('8:00 AM', '8:40 AM')], 'same bus, two linked trips'
+    print('selftest ok')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='cmd', required=True)
-    sub.add_parser('systems')
+    sub.add_parser('systems'); sub.add_parser('selftest')
     s = sub.add_parser('stops'); s.add_argument('system'); s.add_argument('query')
     for name in ('next', 'trip'):
         c = sub.add_parser(name); c.add_argument('system'); c.add_argument('stop')
@@ -144,6 +165,8 @@ def main():
     a = p.parse_args()
     if a.cmd == 'systems':
         return print('\n'.join(n + ''.join(f', {t}' for t, i in sorted(ALIASES.items()) if i == SYSTEMS[n]) for n in sorted(SYSTEMS)))
+    if a.cmd == 'selftest':
+        return selftest()
     z = feed(a.system)
     if a.cmd == 'stops':
         return print('\n'.join(f"{s.get('stop_code') or s['stop_id']:>7}  {s['stop_name']}  ({s['stop_lat']},{s['stop_lon']})" for s in stops(z, a.query)) or 'no stop matches')
