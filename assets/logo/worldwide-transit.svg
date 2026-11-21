@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Worldwide Transit avatar, Job Finder palette (bg #0e0e0d, fg #efebe4, accent #e8442e). A globe with one route on it: a hollow stop where you start, the square stop where you are going. -->
+  <rect width="1024" height="1024" fill="#0e0e0d"/>
+  <g fill="none" stroke="#efebe4" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="512" cy="512" r="310" stroke-width="68"/>
+    <g stroke-width="24" stroke-opacity="0.28">
+      <ellipse cx="512" cy="512" rx="130" ry="300"/>
+      <path d="M222 512 H802"/>
+    </g>
+    <path d="M400 648 L470 578 H558 L670 466" stroke-width="64"/>
+    <circle cx="392" cy="656" r="44" fill="#0e0e0d" stroke-width="36"/>
+  </g>
+  <rect x="580" y="344" width="132" height="132" rx="10" fill="#e8442e"/>
+</svg>

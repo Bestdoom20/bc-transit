@@ -1,0 +1,18 @@
+name: selftest
+on: [push, pull_request]
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ matrix.python }}"}
+      - name: Offline selftests
+        run: python transit.py selftest && python gtfs.py selftest
+      - name: Lint (unused imports, undefined names)
+        run: pip install pyflakes && python -m pyflakes transit.py gtfs.py
+      - name: Installer into a temp folder
+        run: sh install.sh "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/worldwide-transit/SKILL.md"

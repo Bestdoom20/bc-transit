@@ -1,11 +1,85 @@
+<div align="center">
+
+<img src="assets/logo/worldwide-transit-512.png" alt="Worldwide Transit logo" width="180" />
+
 # Worldwide Transit
 
-An agent skill for public transport anywhere in the world. Free, no API key, standard-library Python only.
+### Any trip, any city, any border. Hand it to your agent and ask for the next bus.
 
-- `transit.py` plans trips with transfers, lists departures and looks up places worldwide, using [Transitous](https://transitous.org), a free community service built on open timetable data. City buses, metro, trams, trains and intercity coaches (Amtrak, VIA Rail, FlixBus and more), across borders, with live delays where the operator publishes them.
-- `gtfs.py` reads any official timetable feed in the world, found in the free [Mobility Database](https://mobilitydatabase.org) catalog (about 2,000 live feeds). It is the backup for regions Transitous lacks, such as Kelowna's city buses (missing as of 2026-11).
+[![selftest](https://img.shields.io/github/actions/workflow/status/Bestdoom20/worldwide-transit/selftest.yml?branch=main&label=selftest&style=for-the-badge&labelColor=0d1117&color=e8442e)](.github/workflows/selftest.yml)
+[![License](https://img.shields.io/badge/license-MIT-e8442e?style=for-the-badge&labelColor=0d1117)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B%20stdlib-8f8a81?style=for-the-badge&labelColor=0d1117)](#installation)
+[![Agent](https://img.shields.io/badge/agent-any%20skills%20harness-8f8a81?style=for-the-badge&labelColor=0d1117)](SKILL.md)
+[![Cost](https://img.shields.io/badge/API%20keys-none-8f8a81?style=for-the-badge&labelColor=0d1117)](#where-the-data-comes-from)
 
-On first use the agent asks for your home city or region and saves it, with its time zone, to `~/.config/worldwide-transit/home.json`. Name lookups then prefer places near you, and times come out in your zone.
+<img src="docs/assets/hero.png" alt="Worldwide Transit" width="94%" />
+
+</div>
+
+## Overview
+
+Worldwide Transit is an agent skill for public transport anywhere in the world. Hand this link to your agent, tell it
+your city, and ask it anything you would ask a transit app: the next bus, the last train home, how to get across town by
+9, or Vancouver to Seattle on Saturday. It answers from the operators' own timetables, never from memory.
+
+## What it does
+
+- Plans trips with transfers across cities, countries and borders: buses, metro, trams, trains and intercity coaches.
+- Lists the next departures from any stop, with live delays where the operator publishes them.
+- Reads any of 1,809 official timetable feeds in 80 countries when the planner lacks a region.
+- Asks for your home region once, then understands "Queensway" as the stop near you and answers in your time zone.
+- Says plainly when no open timetable exists, and tells your agent where to look instead.
+- Works with Claude Code, Codex, Gemini CLI and any harness that reads skills. Free, no API key, no dependencies.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Q([You ask<br/>your agent]) --> P[PLAN<br/>Transitous]
+    P -->|route found| A([Answer<br/>leg by leg])
+    P -->|no route| F[FEEDS<br/>official GTFS<br/>near each end]
+    F -->|feed is live| A
+    F -->|no open data| W[OPERATOR SITE<br/>agent looks it up]
+    W --> A
+    classDef you fill:#0e0e0d,stroke:#e8442e,color:#e8442e
+    classDef step fill:#131312,stroke:#2a2927,color:#efebe4
+    class Q,A you
+    class P,F,W step
+```
+
+1. **Plan.** `transit.py` asks [Transitous](https://transitous.org), a free community trip planner built on open
+   timetable data, for routes with transfers.
+2. **Backup.** If it has no route, it prints the next command: `gtfs.py` finds the official feeds covering each end in
+   the [Mobility Database](https://mobilitydatabase.org) catalog and reads the operator's own timetable.
+3. **No data at all.** Some operators publish nothing (Canadian intercity coaches such as Ebus and Rider Express, many
+   private lines elsewhere). The skill tells your agent to find the schedule on the operator's site and say so.
+
+## Installation
+
+**Give this to your agent:**
+
+```text
+Install https://github.com/Bestdoom20/worldwide-transit and set it up for me.
+```
+
+It follows [AGENTS.md](AGENTS.md): installs the skill, asks what city you are in, plans one trip near you to prove it
+works, and tells you what to ask. Any agent with a shell can do it.
+
+**Or from the command line:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Bestdoom20/worldwide-transit/main/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Bestdoom20/worldwide-transit/main/install.ps1 | iex
+```
+
+The installer needs `git` and Python 3.9+. It puts the skill in `~/.claude/skills` (Claude Code) and
+`~/.agents/skills` (Codex, Gemini CLI and others), runs the selftests and prints `INSTALL OK`. Run it again to update.
+Another folder: `sh install.sh /path/to/skills`.
 
 ## Examples
 
@@ -58,21 +132,16 @@ $ python3 gtfs.py next 1871 "kelowna downtown"
 FEED EXPIRED: it ends 20231230, so it has no times for 2026-11-20. Use the operator's own website.
 ```
 
-Operators with no open timetable (Canadian intercity coaches such as Ebus and Rider Express, many private lines elsewhere) are left to the agent: `SKILL.md` tells it to find the operator's current schedule on the web, join it to the legs the scripts cover, and say where each leg came from.
+## Where the data comes from
 
-## Install
+| Source | What | Coverage | Key |
+|---|---|---|---|
+| [Transitous](https://transitous.org/sources/) | trip planning with transfers, departures, live delays, place search | Europe, North America, Japan, Australia and many big cities worldwide | no |
+| [Mobility Database](https://mobilitydatabase.org) | catalog of 1,809 live official GTFS feeds in 80 countries | backup for regions Transitous lacks | no |
+| Operators' own sites | schedules for lines with no open data | found by your agent on the web | no |
 
-Needs Python 3.9 or newer and internet access. On Windows, run `pip install tzdata` once.
-
-```bash
-git clone https://github.com/Bestdoom20/worldwide-transit.git ~/.claude/skills/worldwide-transit   # Claude Code (CLI, IDE, desktop Code tab)
-git clone https://github.com/Bestdoom20/worldwide-transit.git ~/.agents/skills/worldwide-transit   # Codex, Gemini CLI and other harnesses that read ~/.agents/skills
-npx skills add Bestdoom20/worldwide-transit                                                        # any harness the skills CLI supports
-```
-
-**Claude app (web, desktop, mobile chats):** download `worldwide-transit.zip` from the [latest release](https://github.com/Bestdoom20/worldwide-transit/releases/latest) and upload it under Settings > Capabilities > Skills. Code execution must be on, with network access to all domains (feeds are hosted by thousands of operators). Chats there do not keep files, so the agent asks for your region once per chat.
-
-**Any other agent:** give it `SKILL.md` and the two scripts.
+Coverage is whatever operators publish as open data. Strong across Europe, North America, Japan and Australia;
+patchy for private coaches and parts of South Asia and Africa. Fares and bookings are not included.
 
 ## How gtfs.py reads a feed
 
@@ -95,19 +164,23 @@ $ python3 gtfs.py selftest
 selftest ok
 ```
 
-Both run offline.
+Both run offline, and CI runs them on Python 3.9 and 3.13 on every push.
 
-## Limits
+## What it will not do
 
-- Coverage is whatever operators publish as open data: strong across Europe, North America, Japan, Australia and many big cities; patchy for private coaches and parts of South Asia and Africa. Planner coverage: https://transitous.org/sources/
-- Transitous is a free community service. The skill makes one request per question.
-- No fares or bookings.
-- `gtfs.py` gives scheduled times only, one vehicle per trip (no transfers), and reads the whole `stop_times.txt` once per question. Big city feeds take a minute; the planner covers most of those anyway.
+- **Answer from memory.** Every time comes from a timetable read at the moment you ask.
+- **Pass off a dead feed.** An expired timetable stops with `FEED EXPIRED` instead of printing old times.
+- **Hammer free services.** One request per question, cached feeds, no retry loops.
+- **Sell you a ticket.** It links the operator; booking stays with you.
+
+## Links
+
+- **Agent skill:** [SKILL.md](SKILL.md) · agent install steps: [AGENTS.md](AGENTS.md)
+- **Data:** [Transitous](https://transitous.org) (operators' open feeds and OpenStreetMap) · [Mobility Database](https://mobilitydatabase.org)
 
 ## How this was built
 
-I designed it, decided what it had to get right (the cases above) and directed AI coding agents to write the code. I tested it against real schedules and I can walk through every part.
+I designed it, decided what it had to get right (the cases above) and directed AI coding agents to write the code. I
+tested it against real schedules and I can walk through every part.
 
-## Licence
-
-MIT. Trips come from Transitous (transitous.org), whose data comes from each operator's open feeds and OpenStreetMap. The feed catalog is the Mobility Database (mobilitydatabase.org). Each timetable stays under its operator's own licence.
+<div align="center"><sub>MIT licensed. Timetables stay under their operators' own licences. Your home region stays in one file on your machine.</sub></div>
