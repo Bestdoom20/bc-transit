@@ -1,6 +1,45 @@
-# bc-transit
+# transit
 
-Exact scheduled bus times for 35 BC Transit feeds, read from the official GTFS schedule data. One Python file, standard library only.
+An agent skill for public transport trips anywhere in the world. Free, no API key, standard-library Python only.
+
+- `transit.py` plans trips with transfers, lists departures and looks up places worldwide, using [Transitous](https://transitous.org), a free community service built on open timetable data. It covers city buses, metro, trams, trains and intercity coaches (Amtrak, VIA Rail, FlixBus and more), across borders, with live delays where the operator publishes them.
+- `bctransit.py` reads BC Transit's own schedule feeds directly. It is the backup for BC towns that Transitous lacks, such as Kelowna's city buses (missing as of 2026-11).
+
+On first use the agent asks for your home city or region and saves it, along with its time zone, to `~/.config/transit/home.json`. That makes "Queensway" mean the stop near you, and puts times in your zone.
+
+```
+$ python3 transit.py plan "Pacific Central Station, Vancouver" "King Street Station, Seattle" --date 2026-11-24 --at 08:00 -n 1
+From: Vancouver (Pacific Central Station) (Metro Vancouver Regional District, British Columbia, Canada)
+To:   King Street Station (King County, Washington, United States)
+Times in America/Vancouver
+
+leave Tue Nov 24 8:00 AM  arrive Tue Nov 24 12:03 PM  4h03m  0 transfer(s)
+    8:00 AM  coach FlixBus-us FlixBus 2114 toward Seattle Bus Station
+        Vancouver (Pacific Central Station) -> Seattle Bus Station  arrive 11:50 AM
+    walk 13 min to King Street Station
+```
+
+When open data has no route (Canadian private coach lines such as Ebus and Rider Express publish no timetables), `SKILL.md` tells the agent to cover the local legs with the BC backup, find the intercity leg on the operator's site, and say where each leg came from.
+
+## Install as an agent skill
+
+Needs Python 3.9 or newer and internet access. On Windows, run `pip install tzdata` once.
+
+```bash
+git clone https://github.com/Bestdoom20/bc-transit.git ~/.claude/skills/transit   # Claude Code (CLI, IDE, desktop Code tab)
+git clone https://github.com/Bestdoom20/bc-transit.git ~/.agents/skills/transit   # Codex, Gemini CLI and other harnesses that read ~/.agents/skills
+npx skills add Bestdoom20/bc-transit                                              # any harness the skills CLI supports
+```
+
+**Claude app (web, desktop, mobile chats):** download `transit.zip` from the [latest release](https://github.com/Bestdoom20/bc-transit/releases/latest) and upload it under Settings > Capabilities > Skills. Code execution must be on, and its network access must allow `api.transitous.org` and `bct.tmix.se` (add them to the allowed domains, or allow all domains). Chats there do not keep files, so the agent asks for your region once per chat.
+
+**Any other agent:** give it `SKILL.md` and the two scripts.
+
+Check: `python3 transit.py selftest` and `python3 bctransit.py selftest` both print `selftest ok`.
+
+# bctransit.py: BC Transit backup
+
+Exact scheduled bus times for 35 BC Transit feeds, read from the official GTFS schedule data.
 
 Schedules change often: the Kelowna feed used below is valid for about a month (2026-11-17 to 2026-12-19). A remembered answer goes stale, so the script reads the published feed every time.
 
@@ -14,27 +53,7 @@ Schedules change often: the Kelowna feed used below is valid for about a month (
 
 Times are Pacific and printed in 12-hour form. The first line of every answer shows the dates the feed is valid for.
 
-## Install
-
-Needs Python 3.9 or newer on Linux or macOS. Nothing to install.
-
-```bash
-git clone https://github.com/Bestdoom20/bc-transit.git
-cd bc-transit
-python3 bctransit.py selftest
-```
-
-### As an agent skill
-
-The repo is an [Agent Skill](https://agentskills.io): `SKILL.md` at the root tells the agent when and how to run the script. Clone it into your harness's skills folder:
-
-```bash
-git clone https://github.com/Bestdoom20/bc-transit.git ~/.claude/skills/bc-transit   # Claude Code
-git clone https://github.com/Bestdoom20/bc-transit.git ~/.agents/skills/bc-transit   # Codex and other harnesses that read ~/.agents/skills
-npx skills add Bestdoom20/bc-transit                                                 # any harness the skills CLI supports
-```
-
-Any other agent can use it by reading `SKILL.md` and running the script.
+## Cache
 
 The first query for a system downloads its feed (about 1 MB for Kelowna) into `~/.cache/bctransit/` and reuses it for a day.
 
@@ -166,4 +185,4 @@ I designed it, decided what it had to get right (the three cases above) and dire
 
 ## Licence
 
-MIT. The schedule data comes from BC Transit's open data page (bctransit.com/open-data).
+MIT. Worldwide trips come from Transitous (transitous.org), whose data comes from each operator's open feeds and OpenStreetMap. The BC backup reads BC Transit's open data page (bctransit.com/open-data).
