@@ -1,7 +1,8 @@
 # Install Worldwide Transit (instructions for an AI agent)
 
-What this is: a skill that answers public transport questions anywhere in the world (trips with transfers, next
-departures, live delays where published) from open timetable data. Free, no API key, standard-library Python.
+What this is: a travel planner skill for anywhere in the world: live flight prices and the cheapest days to fly,
+trains, coaches, ferries, city transit with live delays, and driving time and fuel cost. Free, no API key, no setup,
+standard-library Python.
 
 The user handed you this repository and said something like "install this". Install it, ask them one question, check it
 works, and tell them what to ask. They should not have to type a command.
@@ -18,9 +19,10 @@ works, and tell them what to ask. They should not have to type a command.
    If Python is missing or older than 3.9, install it with the system package manager if you are allowed, else ask.
 
 2. **Home region.** If you already know where the user lives (memory, profile, this conversation), use that. Otherwise
-   ask ONE short question: "What city or region are you usually in?" Then save it with its IANA time zone:
+   ask ONE short question: "What city or region are you usually in?" Then save it with its IANA time zone and the
+   local currency:
    ```bash
-   python3 ~/.claude/skills/worldwide-transit/transit.py home "Kelowna, BC" --tz America/Vancouver
+   python3 ~/.claude/skills/worldwide-transit/transit.py home "Kelowna, BC" --tz America/Vancouver --currency CAD
    ```
    (Use the folder the installer printed.)
 
@@ -28,12 +30,14 @@ works, and tell them what to ask. They should not have to type a command.
    or university, and show them the answer:
    ```bash
    python3 <skill folder>/transit.py plan "<a place in their city>" "<another place in their city>" -n 1
+   python3 <skill folder>/flights.py selftest && python3 <skill folder>/drive.py selftest
    ```
    If it prints "No public transport route found in Transitous", run the `gtfs.py feeds` command it prints. If that
    lists their local operator, `gtfs.py next <id> "<stop>"` gives exact times. Tell the user which one covers them.
 
 4. **Hand over.** Tell them it is ready and give two or three questions they can ask you, for example "when is the next
-   bus home?", "how do I get to the airport by 9?", "Vancouver to Seattle on Saturday". From now on follow
+   bus home?", "cheapest week in January to fly to Tokyo for 30 days?", "is it cheaper to drive to Vancouver and fly
+   from there?". From now on follow
    [SKILL.md](SKILL.md) whenever they ask about transit.
 
 ## If you have no shell (a chat-only assistant)

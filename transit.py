@@ -101,7 +101,7 @@ def show_plan(d, tz, n, ends=()):
         for l in it['legs']:
             if l['mode'] == 'WALK':
                 if l['duration'] >= 60:
-                    print(f"    walk {mins(l['duration'])} to {l['to']['name']}")
+                    print(f"    walk {mins(l['duration'])} to {'your destination' if l['to']['name'] == 'END' else l['to']['name']}")
                 continue
             who = ' '.join(dict.fromkeys(x for x in (l.get('agencyName'), l.get('routeShortName')) if x))
             head = f" toward {l['headsign']}" if l.get('headsign') else ''
@@ -113,20 +113,23 @@ def show_plan(d, tz, n, ends=()):
 def cmd_home(a):
     if not a.place:
         h = home()
-        print(json.dumps(h) if h else f'No home region saved ({HOME}). Ask the user for their city or region, then run: home "<city>" --tz <IANA zone>')
+        print(json.dumps(h) if h else f'No home region saved ({HOME}). Ask the user for their city or region, then run: home "<city>" --tz <IANA zone> --currency <ISO code>')
         return
     if not a.tz:
-        sys.exit('Give the time zone too, e.g. home "Kelowna, BC" --tz America/Vancouver')
+        sys.exit('Give the time zone too, e.g. home "Kelowna, BC" --tz America/Vancouver --currency CAD')
     ZoneInfo(a.tz)  # fails loudly on a bad zone name
     hits = get('/v1/geocode', text=a.place)
     if not hits:
         sys.exit(f'No place found for "{a.place}".')
-    p = hits[0]
-    h = {'name': f"{p['name']}, {area(p)}", 'lat': p['lat'], 'lon': p['lon'], 'tz': a.tz}
+    town = a.place.split(',')[0].strip()
+    exact = lambda hs: next((h for h in hs if h['name'].lower() == town.lower()), None)
+    # "Kelowna, BC" means the town, not the first business with Kelowna in its name
+    p = exact(hits) or exact(get('/v1/geocode', text=town)) or hits[0]
+    h = {'name': f"{p['name']}, {area(p)}", 'lat': p['lat'], 'lon': p['lon'], 'tz': a.tz, 'currency': (a.currency or 'USD').upper()}
     os.makedirs(os.path.dirname(HOME), exist_ok=True)
     with open(HOME, 'w') as f:
         json.dump(h, f)
-    print(f"Home region saved: {h['name']} ({h['lat']:.4f},{h['lon']:.4f}), times in {a.tz}. File: {HOME}")
+    print(f"Home region saved: {h['name']} ({h['lat']:.4f},{h['lon']:.4f}), times in {a.tz}, prices in {h['currency']}. File: {HOME}")
 
 
 def cmd_find(a):
@@ -178,6 +181,7 @@ def main():
     sp = ap.add_subparsers(dest='cmd', required=True)
     p = sp.add_parser('home', help='show or save the home region')
     p.add_argument('place', nargs='?'); p.add_argument('--tz', help='IANA zone, e.g. America/Vancouver')
+    p.add_argument('--currency', help='ISO code for prices, e.g. CAD')
     p = sp.add_parser('find', help='look up a place or stop')
     p.add_argument('text'); p.add_argument('--stops', action='store_true'); p.add_argument('-n', type=int, default=8)
     p = sp.add_parser('plan', help='trip from A to B, with transfers')

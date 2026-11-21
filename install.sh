@@ -28,7 +28,6 @@ for dir in $targets; do
     mkdir -p "$dir"
     git clone -q --depth 1 "$REPO" "$dest"
   fi
-  python3 "$dest/transit.py" selftest
-  python3 "$dest/gtfs.py" selftest
+  for s in transit gtfs flights drive; do python3 "$dest/$s.py" selftest; done
 done
-echo "INSTALL OK. Ask your agent: \"when is the next bus home?\" It will ask for your city once, then answer."
+echo "INSTALL OK. Ask your agent: \"plan me a trip\". It will ask for your city once, then answer."

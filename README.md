@@ -4,13 +4,13 @@
 
 # Worldwide Transit
 
-### Any trip, any city, any border. Hand it to your agent and ask for the next bus.
+### Flights, trains, coaches, ferries, transit and driving, priced and timed door to door. Hand it to your agent.
 
 [![selftest](https://img.shields.io/github/actions/workflow/status/Bestdoom20/worldwide-transit/selftest.yml?branch=main&label=selftest&style=for-the-badge&labelColor=0d1117&color=e8442e)](.github/workflows/selftest.yml)
 [![License](https://img.shields.io/badge/license-MIT-e8442e?style=for-the-badge&labelColor=0d1117)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B%20stdlib-8f8a81?style=for-the-badge&labelColor=0d1117)](#installation)
 [![Agent](https://img.shields.io/badge/agent-any%20skills%20harness-8f8a81?style=for-the-badge&labelColor=0d1117)](SKILL.md)
-[![Cost](https://img.shields.io/badge/API%20keys-none-8f8a81?style=for-the-badge&labelColor=0d1117)](#where-the-data-comes-from)
+[![Cost](https://img.shields.io/badge/API%20keys-none-8f8a81?style=for-the-badge&labelColor=0d1117)](#how-it-works)
 
 <img src="docs/assets/hero.png" alt="Worldwide Transit" width="94%" />
 
@@ -18,41 +18,48 @@
 
 ## Overview
 
-Worldwide Transit is an agent skill for public transport anywhere in the world. Hand this link to your agent, tell it
-your city, and ask it anything you would ask a transit app: the next bus, the last train home, how to get across town by
-9, or Vancouver to Seattle on Saturday. It answers from the operators' own timetables, never from memory.
+Worldwide Transit is an agent travel planner for anywhere in the world. Install it with one line, tell your agent your
+city, and ask what you would ask a travel agent: the cheapest week in January to fly to Tokyo for 30 days, whether
+driving to Vancouver and flying from there beats flying from home, a month-long trip across Asia priced leg by leg, or
+just the next bus. Every price and time comes from live data at the moment you ask, never from memory.
 
 ## What it does
 
-- Plans trips with transfers across cities, countries and borders: buses, metro, trams, trains and intercity coaches.
-- Lists the next departures from any stop, with live delays where the operator publishes them.
-- Reads any of 1,809 official timetable feeds in 80 countries when the planner lacks a region.
-- Asks for your home region once, then understands "Queensway" as the stop near you and answers in your time zone.
-- Says plainly when no open timetable exists, and tells your agent where to look instead.
-- Works with Claude Code, Codex, Gemini CLI and any harness that reads skills. Free, no API key, no dependencies.
+- **Flights:** live fares, the cheapest day to leave for a stay of N days, and multi-city trips priced leg by leg.
+- **Ground:** trains, intercity coaches, ferries, city buses and metro, with transfers and live delays where published.
+- **Driving:** distance, time and fuel cost for any road trip, so "drive part way, then fly" can be compared properly.
+- **Door to door:** your agent joins the legs into one plan with total time and the total of everything it could price.
+- **Honest money:** only real prices with their source. Anything it cannot price is listed as "not priced", never guessed.
+- **No setup:** no API keys, no accounts, no dependencies. Works with Claude Code, Codex, Gemini CLI and any skills harness.
+- **Never books:** it finds and compares; you book through the links it gives.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    Q([You ask<br/>your agent]) --> P[PLAN<br/>Transitous]
-    P -->|route found| A([Answer<br/>leg by leg])
-    P -->|no route| F[FEEDS<br/>official GTFS<br/>near each end]
-    F -->|feed is live| A
-    F -->|no open data| W[OPERATOR SITE<br/>agent looks it up]
-    W --> A
+    Q([You ask<br/>your agent]) --> B[BRIEF<br/>where, when,<br/>how long]
+    B --> F[FLIGHTS<br/>cheapest days,<br/>live fares]
+    B --> G[GROUND<br/>trains, coaches,<br/>ferries, transit]
+    B --> D[DRIVE<br/>distance, time,<br/>fuel]
+    F --> P([Plan<br/>time + cost<br/>+ book links])
+    G --> P
+    D --> P
     classDef you fill:#0e0e0d,stroke:#e8442e,color:#e8442e
     classDef step fill:#131312,stroke:#2a2927,color:#efebe4
-    class Q,A you
-    class P,F,W step
+    class Q,P you
+    class B,F,G,D step
 ```
 
-1. **Plan.** `transit.py` asks [Transitous](https://transitous.org), a free community trip planner built on open
-   timetable data, for routes with transfers.
-2. **Backup.** If it has no route, it prints the next command: `gtfs.py` finds the official feeds covering each end in
-   the [Mobility Database](https://mobilitydatabase.org) catalog and reads the operator's own timetable.
-3. **No data at all.** Some operators publish nothing (Canadian intercity coaches such as Ebus and Rider Express, many
-   private lines elsewhere). The skill tells your agent to find the schedule on the operator's site and say so.
+| Script | Source | What it answers |
+|---|---|---|
+| `flights.py` | Google Flights public web data | live fares, cheapest days to fly, multi-city legs |
+| `transit.py` | [Transitous](https://transitous.org) | trains, coaches, ferries, buses and metro with transfers and live delays |
+| `gtfs.py` | [Mobility Database](https://mobilitydatabase.org) | exact times from 1,809 official timetable feeds when Transitous lacks a region |
+| `drive.py` | [Valhalla](https://valhalla.github.io/valhalla/) and OSRM on OpenStreetMap | driving distance, time and fuel |
+
+`SKILL.md` teaches the agent how to join them: pin down the brief, find the cheapest days, compare a nearby bigger airport
+(with the drive or coach to get there), check whether a train or ferry beats a short flight, add up door-to-door time,
+and check the destination's official entry rules.
 
 ## Installation
 
@@ -84,6 +91,44 @@ Another folder: `sh install.sh /path/to/skills`.
 ## Examples
 
 All output below is real, run on 2026-11-20 and 2026-11-21, with some lines trimmed.
+
+The cheapest week to leave for 30 days in Japan:
+
+```
+$ python3 flights.py dates YLW NRT,HND --from 2027-01-10 --to 2027-01-16 --stay 30
+Cheapest round trips of 30 days YLW -> NRT,HND, leaving 2027-01-10 to 2027-01-16, prices in CAD
+  Tue Jan 12 -> Thu Feb 11  CAD 1,221
+  Wed Jan 13 -> Fri Feb 12  CAD 1,500
+  Thu Jan 14 -> Sat Feb 13  CAD 1,510
+  Sat Jan 16 -> Mon Feb 15  CAD 1,819
+
+Best: leave Tue Jan 12, back Thu Feb 11  CAD 1,221  https://www.google.com/travel/flights?q=...
+```
+
+Live flights for that day:
+
+```
+$ python3 flights.py search YLW NRT,HND 2027-01-12 --currency CAD -n 1
+CAD 648  19h10m  1 stop
+    WS180    YLW Tue Jan 12 5:20 AM -> YYC Tue Jan 12 7:30 AM
+    WS80     YYC Tue Jan 12 2:45 PM -> NRT Wed Jan 13 4:30 PM
+```
+
+Driving to a bigger airport instead (fuel price given by the traveller):
+
+```
+$ python3 drive.py "Kelowna" "Vancouver International Airport" --consumption 8.5 --fuel-price 1.55
+Drive: 408 km, 4h44m at typical road speeds, before traffic, stops and border waits
+Fuel: 34.7 L = CAD 53.76
+```
+
+A ferry, straight from the planner:
+
+```
+$ python3 transit.py plan "Tsawwassen Ferry Terminal" "Swartz Bay" --date 2026-11-24 --at 09:00 -n 1
+leave Tue Nov 24 10:00 AM  arrive Tue Nov 24 11:40 AM  1h40m  0 transfer(s)
+    10:00 AM  ferry BC Ferries toward Swartz Bay (Victoria)
+```
 
 Cross-border trip with a transfer:
 
@@ -132,16 +177,17 @@ $ python3 gtfs.py next 1871 "kelowna downtown"
 FEED EXPIRED: it ends 20231230, so it has no times for 2026-11-20. Use the operator's own website.
 ```
 
-## Where the data comes from
+## Limits
 
-| Source | What | Coverage | Key |
-|---|---|---|---|
-| [Transitous](https://transitous.org/sources/) | trip planning with transfers, departures, live delays, place search | Europe, North America, Japan, Australia and many big cities worldwide | no |
-| [Mobility Database](https://mobilitydatabase.org) | catalog of 1,809 live official GTFS feeds in 80 countries | backup for regions Transitous lacks | no |
-| Operators' own sites | schedules for lines with no open data | found by your agent on the web | no |
-
-Coverage is whatever operators publish as open data. Strong across Europe, North America, Japan and Australia;
-patchy for private coaches and parts of South Asia and Africa. Fares and bookings are not included.
+- **Flight prices** come from Google Flights' public web data, which has no official API. Google throttles bursts (the
+  script backs off and says "rate limit" rather than "no flights") and may change the format. Prices move by the hour:
+  treat them as a strong lead and confirm on the link.
+- **Ground coverage** is whatever operators publish as open data: strong across Europe, North America, Japan and
+  Australia, patchy for private coaches and parts of South Asia and Africa.
+- **Drive times** are at typical road speeds, before traffic, stops and border waits. Drives over 1,500 km use OSRM,
+  whose times run 10 to 25 percent long, and the output says so.
+- **Not priced:** hotels, parking, transit fares and visas. Your agent looks these up on the web and cites them, or lists
+  them as not priced.
 
 ## How gtfs.py reads a feed
 
@@ -158,25 +204,28 @@ Things in the data that are easy to get wrong, each with a case in the selftest:
 ## Check
 
 ```
-$ python3 transit.py selftest
+$ for s in transit gtfs flights drive; do python3 $s.py selftest; done
 selftest ok
-$ python3 gtfs.py selftest
+selftest ok
+selftest ok
 selftest ok
 ```
 
-Both run offline, and CI runs them on Python 3.9 and 3.13 on every push.
+All four run offline, and CI runs them on Python 3.9 and 3.13 on every push.
 
 ## What it will not do
 
 - **Answer from memory.** Every time comes from a timetable read at the moment you ask.
 - **Pass off a dead feed.** An expired timetable stops with `FEED EXPIRED` instead of printing old times.
-- **Hammer free services.** One request per question, cached feeds, no retry loops.
-- **Sell you a ticket.** It links the operator; booking stays with you.
+- **Hammer free services.** One request per question (one per day for `dates`), cached feeds, polite back-off.
+- **Guess a price.** Fuel needs a real price per litre; anything it cannot price is listed as not priced.
+- **Book or pay.** It links Google Flights, the airline or the operator; booking stays with you.
 
 ## Links
 
 - **Agent skill:** [SKILL.md](SKILL.md) · agent install steps: [AGENTS.md](AGENTS.md)
-- **Data:** [Transitous](https://transitous.org) (operators' open feeds and OpenStreetMap) · [Mobility Database](https://mobilitydatabase.org)
+- **Data:** [Transitous](https://transitous.org) (operators' open feeds and OpenStreetMap) · [Mobility Database](https://mobilitydatabase.org) · [Valhalla](https://valhalla.github.io/valhalla/) and [OSRM](https://project-osrm.org) on OpenStreetMap
+- **Credits:** flight request format from [fli](https://github.com/punitarani/fli) (MIT), see [NOTICE](NOTICE)
 
 ## How this was built
 

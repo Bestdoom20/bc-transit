@@ -1,0 +1,5 @@
+Worldwide Transit
+Copyright (c) 2026 Axton McGoran, MIT licence (see LICENSE).
+
+flights.py ports the Google Flights request format and response layout worked out by fli
+(https://github.com/punitarani/fli), Copyright (c) Punit Arani, MIT licence.

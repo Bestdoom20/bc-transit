@@ -17,7 +17,8 @@ foreach ($dir in $targets) {
   $dest = Join-Path $dir 'worldwide-transit'
   if (Test-Path "$dest/.git") { Write-Host "== updating $dest"; git -C $dest pull -q --ff-only }
   else { Write-Host "== installing into $dest"; New-Item -ItemType Directory -Force $dir | Out-Null; git clone -q --depth 1 $repo $dest }
-  & $py.Source "$dest/transit.py" selftest; if ($LASTEXITCODE) { throw 'transit.py selftest failed' }
-  & $py.Source "$dest/gtfs.py" selftest; if ($LASTEXITCODE) { throw 'gtfs.py selftest failed' }
+  foreach ($s in 'transit', 'gtfs', 'flights', 'drive') {
+    & $py.Source "$dest/$s.py" selftest; if ($LASTEXITCODE) { throw "$s.py selftest failed" }
+  }
 }
-Write-Host 'INSTALL OK. Ask your agent: "when is the next bus home?" It will ask for your city once, then answer.'
+Write-Host 'INSTALL OK. Ask your agent: "plan me a trip". It will ask for your city once, then answer.'
