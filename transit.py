@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 API = 'https://api.transitous.org/api'
-UA = 'transit-agent-skill/1.0'  # Transitous asks clients to send a User-Agent
-HOME = os.path.join(os.environ.get('XDG_CONFIG_HOME') or os.path.expanduser('~/.config'), 'transit', 'home.json')
+UA = 'worldwide-transit-skill/2.1'  # Transitous asks clients to send a User-Agent
+HOME = os.path.join(os.environ.get('XDG_CONFIG_HOME') or os.path.expanduser('~/.config'), 'worldwide-transit', 'home.json')
 LATLON = re.compile(r'^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$')
 
 
@@ -34,10 +34,13 @@ def zone(tz):
     return ZoneInfo(tz or (h and h['tz']) or 'UTC')
 
 
+NEAR = None  # 'lat,lon' from --near; ponytail: module global, set once per run in main()
+
+
 def geocode(text, stops_only=False):
     h = home()
-    return get('/v1/geocode', text=text, type='STOP' if stops_only else None,
-               place=f"{h['lat']},{h['lon']}" if h else None)  # bias results toward the saved home region
+    bias = NEAR or (f"{h['lat']},{h['lon']}" if h else None)  # bias results toward --near, else the saved home region
+    return get('/v1/geocode', text=text, type='STOP' if stops_only else None, place=bias)
 
 
 def area(p):
@@ -47,12 +50,13 @@ def area(p):
 def place(text):
     """'lat,lon' passes through; anything else is geocoded and the best match is used (and printed)."""
     if LATLON.match(text):
-        return text.replace(' ', ''), text
+        return text.replace(' ', ''), text, text.replace(' ', '')
     hits = geocode(text)
     if not hits:
         sys.exit(f'No place found for "{text}". Try a fuller name, e.g. "Pacific Central Station, Vancouver", or lat,lon.')
     p = hits[0]
-    return p['id'] if p['type'] == 'STOP' else f"{p['lat']},{p['lon']}", f"{p['name']} ({area(p)})"
+    ll = f"{p['lat']:.5f},{p['lon']:.5f}"
+    return p['id'] if p['type'] == 'STOP' else ll, f"{p['name']} ({area(p)})", ll
 
 
 def when(date, hm, tz):
@@ -84,10 +88,13 @@ def late(stop, key):
     return f' ({"+" if d > 0 else ""}{d} min {"late" if d > 0 else "early"})' if d else ''
 
 
-def show_plan(d, tz, n):
+def show_plan(d, tz, n, ends=()):
     its = d.get('itineraries', [])[:n]
     if not its:
-        print('No public transport route found in open data. See SKILL.md "When there is no route".')
+        print('No public transport route found in Transitous. Next, find official feeds covering each end:')
+        for ll in ends:
+            print(f'    python3 gtfs.py feeds {ll}')
+        print('Then see SKILL.md "When there is no route".')
     for it in its:
         print(f"\nleave {clock(it['startTime'], tz, True)}  arrive {clock(it['endTime'], tz, True)}  "
               f"{mins(it['duration'])}  {it['transfers']} transfer(s)")
@@ -129,11 +136,11 @@ def cmd_find(a):
 
 def cmd_plan(a):
     tz = zone(a.tz)
-    (f, fn), (t, tn) = place(a.origin), place(a.dest)
+    (f, fn, fl), (t, tn, tl) = place(a.origin), place(a.dest)
     print(f'From: {fn}\nTo:   {tn}\nTimes in {tz.key}')
     d = get('/v5/plan', fromPlace=f, toPlace=t, time=when(a.date, a.arrive_by or a.at, tz),
             arriveBy='true' if a.arrive_by else None, numItineraries=a.n, maxTransfers=a.max_transfers)
-    show_plan(d, tz, a.n)
+    show_plan(d, tz, a.n, (fl, tl))
 
 
 def cmd_next(a):
@@ -142,7 +149,10 @@ def cmd_next(a):
     if not hits:
         sys.exit(f'No stop found for "{a.stop}". Try: find "{a.stop}" --stops')
     s = hits[0]
-    print(f"Stop: {s['name']}  id={s['id']}\nTimes in {tz.key}")
+    print(f"Stop: {s['name']}{'  (' + area(s) + ')' if s.get('areas') else ''}  id={s['id']}")
+    if len(hits) > 1:
+        print('Other matches: ' + '; '.join(f"{h['name']} ({area(h)})" for h in hits[1:4]))
+    print(f'Times in {tz.key}')
     d = get('/v5/stoptimes', stopId=s['id'], n=a.n, time=when(a.date, a.at, tz))
     for x in d.get('stopTimes', []):
         p = x['place']
@@ -182,7 +192,12 @@ def main():
         q.add_argument('-n', type=int, default=5 if name == 'plan' else 10)
     sp.choices['plan'].add_argument('--arrive-by', help='HH:MM, arrive by')
     sp.add_parser('selftest')
+    for name in ('plan', 'next', 'find'):
+        sp.choices[name].add_argument('--near', help='bias name lookups toward this place (for trips away from home)')
     a = ap.parse_args()
+    if getattr(a, 'near', None):
+        global NEAR
+        NEAR = place(a.near)[2]
     {'home': cmd_home, 'find': cmd_find, 'plan': cmd_plan, 'next': cmd_next, 'selftest': lambda a: selftest()}[a.cmd](a)
 
 
