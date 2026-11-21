@@ -24,6 +24,18 @@ cd bc-transit
 python3 bctransit.py selftest
 ```
 
+### As an agent skill
+
+The repo is an [Agent Skill](https://agentskills.io): `SKILL.md` at the root tells the agent when and how to run the script. Clone it into your harness's skills folder:
+
+```bash
+git clone https://github.com/Bestdoom20/bc-transit.git ~/.claude/skills/bc-transit   # Claude Code
+git clone https://github.com/Bestdoom20/bc-transit.git ~/.agents/skills/bc-transit   # Codex and other harnesses that read ~/.agents/skills
+npx skills add Bestdoom20/bc-transit                                                 # any harness the skills CLI supports
+```
+
+Any other agent can use it by reading `SKILL.md` and running the script.
+
 The first query for a system downloads its feed (about 1 MB for Kelowna) into `~/.cache/bctransit/` and reuses it for a day.
 
 ## Examples
